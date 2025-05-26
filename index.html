@@ -388,17 +388,43 @@
                     <span class="preview-points bad">-1 vida</span>
                 </div>
             </div>
-        
+            
             <button id="start-button" class="btn">
                 <i class="fas fa-play"></i> Começar Jogo
             </button>
             
             <div class="instructions">
                 <h3>Como Jogar</h3>
-                <p>Clique nas frutas para cortá-las e ganhar pontos. Quanto mais rara a fruta, mais pontos você ganha! Cuidado com as bombas - elas custam uma vida!</p>
+                <p>Clique nas frutas para cortá-las e ganhar pontos. Cuidado com as bombas - elas custam uma vida!</p>
             </div>
         </div>
         
+        <div id="pause-screen" class="screen">
+            <h1>Jogo Pausado</h1>
+            <p>Pontuação atual: <span id="pause-score" class="highlight">0</span></p>
+            <button id="resume-button" class="btn">
+                <i class="fas fa-play"></i> Continuar
+            </button>
+            <button id="restart-from-pause-button" class="btn">
+                <i class="fas fa-redo"></i> Reiniciar
+            </button>
+            <button id="menu-from-pause-button" class="btn btn-danger">
+                <i class="fas fa-home"></i> Menu Principal
+            </button>
+        </div>
+        
+        
+        <div id="game-over-screen" class="screen">
+            <h1>Fim de Jogo!</h1>
+            <p>Sua pontuação final: <span id="final-score" class="highlight">0</span></p>
+            <button id="restart-button" class="btn">
+                <i class="fas fa-redo"></i> Jogar Novamente
+            </button>
+            <button id="menu-button" class="btn btn-danger">
+                <i class="fas fa-home"></i> Menu Principal
+            </button>
+        </div>
+    </div>
 
     <script>
         // Constantes do jogo
