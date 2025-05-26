@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruits Fight</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #45a049;
+            --danger-color: #f44336;
+            --danger-dark: #d32f2f;
+            --warning-color: #ff9800;
+            --dark-color: #333;
+            --light-color: #fff;
+            --shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
+            height: 100vh;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="%23ff0000" d="M16 2C8.2 2 2 8.2 2 16s6.2 14 14 14 14-6.2 14-14S23.8 2 16 2zm0 26C9.4 28 4 22.6 4 16S9.4 4 16 4s12 5.4 12 12-5.4 12-12 12z"/><path fill="%23ff0000" d="M21.4 10.6l-1.4-1.4-10 10 1.4 1.4z"/><path fill="%23ff0000" d="M20 11.4l-10 10 1.4 1.4 10-10z"/></svg>') 16 16, pointer;
+            touch-action: manipulation;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .fruit, .bomb {
+            position: absolute;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transition: transform 0.2s ease-out;
+            z-index: 10;
+        }
+        
+        .fruit img, .bomb img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .fruit.cut {
+            transform: scale(1.3) rotate(180deg);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .bomb.exploded {
+            transform: scale(2);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .fruit-half {
+            position: absolute;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            z-index: 5;
+        }
+        
+        .fruit-half img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .explosion {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, #ff6600 0%, #ff0000 70%, transparent 80%);
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(0);
+            animation: explode 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            z-index: 20;
+            pointer-events: none;
+        }
+        
+        @keyframes explode {
+            0% {
+                transform: scale(0);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+        
+        .juice-splash {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0;
+            animation: splash 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 15;
+        }
+        
+        @keyframes splash {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            20% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+        
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        #score-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 12px 20px;
+            border-radius: 30px;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #lives-container {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .life {
+            width: 24px;
+            height: 24px;
+            background-color: var(--danger-color);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        #pause-button {
+            pointer-events: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #pause-button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+        
+        #pause-button i {
+            font-size: 20px;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            z-index: 200;
+            text-align: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        #start-screen {
+    display: flex;
+    gap: 20px;
+    padding: 40px 20px;
+    overflow-y: auto;
+}
+        
+        #game-over-screen, #pause-screen {
+            display: none;
+        }
+        
+        .screen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .screen p {
+            font-size: 20px;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+        
+        .screen .highlight {
+            color: var(--warning-color);
+            font-weight: bold;
+        }
+        
+        .btn {
+            background-color: var(--primary-color);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.2s;
+            box-shadow: var(--shadow);
+            min-width: 200px;
+        }
+        
+        .btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+        
+        .btn-danger:hover {
+            background-color: var(--danger-dark);
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 500px;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--warning-color);
+        }
+        
+        .fruit-preview {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .preview-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .preview-img {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 5px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        
+        .preview-points {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .good {
+            color: var(--primary-color);
+        }
+        
+        .bad {
+            color: var(--danger-color);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-container">
+            <div id="score-display">
+                <span id="score-value">0</span>
+                <div id="lives-container">
+                    <div class="life"></div>
+                    <div class="life"></div>
+                    <div class="life"></div>
+                </div>
+            </div>
+            <button id="pause-button">
+                <i class="fas fa-pause"></i>
+            </button>
+        </div>
+        
+        <div id="start-screen" class="screen">
+            <h1>Fruits Fight</h1>
+            <p>Corte as frutas antes que caiam no chão e <span class="highlight">evite as bombas</span> para marcar o máximo de pontos!</p>
+            
+            <div class="fruit-preview">
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/415/415682.png" class="preview-img">
+                    <span class="preview-points good">+10</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1514/1514933.png" class="preview-img">
+                    <span class="preview-points good">+15</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/135/135620.png" class="preview-img">
+                    <span class="preview-points good">+20</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/7693/7693578.png" class="preview-img">
+                    <span class="preview-points good">+25</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/590/590685.png" class="preview-img">
+                    <span class="preview-points good">+30</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/8692/8692265.png" class="preview-img">
+                    <span class="preview-points good">+40</span>
+                </div>
+                <div class="preview-item">
+                    <img src="https://cdn-icons-png.flaticon.com/512/7086/7086637.png" class="preview-img">
+                    <span class="preview-points bad">-1 vida</span>
+                </div>
+            </div>
+        
+            <button id="start-button" class="btn">
+                <i class="fas fa-play"></i> Começar Jogo
+            </button>
+            
+            <div class="instructions">
+                <h3>Como Jogar</h3>
+                <p>Clique nas frutas para cortá-las e ganhar pontos. Quanto mais rara a fruta, mais pontos você ganha! Cuidado com as bombas - elas custam uma vida!</p>
+            </div>
+        </div>
+        
+
+    <script>
+        // Constantes do jogo
+        const GAME_WIDTH = window.innerWidth;
+        const GAME_HEIGHT = window.innerHeight;
+        const FRUIT_TYPES = ['apple', 'banana', 'orange', 'watermelon', 'strawberry', 'pineapple'];
+        const ITEM_TYPES = [...FRUIT_TYPES, 'bomb'];
+        const ITEM_SCORES = {
+            'apple': 10,
+            'banana': 15,
+            'orange': 20,
+            'watermelon': 25,
+            'strawberry': 30,
+            'pineapple': 40,
+            'bomb': 0
+        };
+        const ITEM_SPEEDS = {
+            'apple': 3,
+            'banana': 4,
+            'orange': 3.5,
+            'watermelon': 2.5,
+            'strawberry': 5,
+            'pineapple': 2,
+            'bomb': 3
+        };
+        const ITEM_SIZES = {
+            'apple': 70,
+            'banana': 80,
+            'orange': 60,
+            'watermelon': 100,
+            'strawberry': 80,
+            'pineapple': 90,
+            'bomb': 70
+        };
+        const ITEM_IMAGES = {
+            'apple': 'https://cdn-icons-png.flaticon.com/512/415/415682.png',
+            'banana': 'https://cdn-icons-png.flaticon.com/512/1514/1514933.png',
+            'orange': 'https://cdn-icons-png.flaticon.com/512/135/135620.png',
+            'watermelon': 'https://cdn-icons-png.flaticon.com/512/7693/7693578.png',
+            'strawberry': 'https://cdn-icons-png.flaticon.com/512/590/590685.png',
+            'pineapple': 'https://cdn-icons-png.flaticon.com/512/8692/8692265.png',
+            'bomb': 'https://cdn-icons-png.flaticon.com/512/7086/7086637.png'
+        };
+        const MAX_LIVES = 3;
+        const INITIAL_SPAWN_RATE = 1500; // ms
+        const SPAWN_RATE_DECREASE = 50; // ms per level
+        const MIN_SPAWN_RATE = 500;
+        const LEVEL_UP_SCORE = 100;
+        const BOMB_SPAWN_CHANCE = 0.15; // 15% de chance de spawnar uma bomba
+
+        // Variáveis do jogo
+        let score = 0;
+        let lives = MAX_LIVES;
+        let level = 1;
+        let gameActive = false;
+        let gamePaused = false;
+        let items = [];
+        let spawnRate = INITIAL_SPAWN_RATE;
+        let lastTime = 0;
+        let animationFrameId = null;
+        let spawnIntervalId = null;
+        let gameState = {
+            score: 0,
+            lives: MAX_LIVES,
+            level: 1,
+            spawnRate: INITIAL_SPAWN_RATE,
+            items: []
+        };
+
+        // Elementos do DOM
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score-value');
+        const livesContainer = document.getElementById('lives-container');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const pauseScoreDisplay = document.getElementById('pause-score');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const menuButton = document.getElementById('menu-button');
+        const pauseButton = document.getElementById('pause-button');
+        const resumeButton = document.getElementById('resume-button');
+        const restartFromPauseButton = document.getElementById('restart-from-pause-button');
+        const menufrompausebutton=document.getElementById('menu-from-pause-button');
+
+        // Event listeners
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', restartGame);
+        menuButton.addEventListener('click', returnToMenu);
+        pauseButton.addEventListener('click', togglePause);
+        resumeButton.addEventListener('click', resumeGame);
+        
+        restartFromPauseButton.addEventListener('click', restartFromPause);
+// Adicionar junto aos outros event listeners
+const menuFromPauseButton = document.getElementById('menu-from-pause-button');
+menuFromPauseButton.addEventListener('click', () => {
+    document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash').forEach(el => el.remove());
+    pauseScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+    returnToMenu();
+});
+
+        // Funções do jogo
+        function startGame() {
+            gameActive = true;
+            gamePaused = false;
+            score = 0;
+            lives = MAX_LIVES;
+            level = 1;
+            spawnRate = INITIAL_SPAWN_RATE;
+            items = [];
+            
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            pauseScreen.style.display = 'none';
+            updateScoreDisplay();
+            updateLivesDisplay();
+            
+            lastTime = performance.now();
+            gameLoop(lastTime);
+            
+            // Começa a spawnar itens
+            spawnIntervalId = setInterval(spawnItem, spawnRate);
+        }
+
+        function restartGame() {
+            // Remove todos os itens do jogo
+            document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash').forEach(el => el.remove());
+            
+            gameOverScreen.style.display = 'none';
+            startGame();
+        }
+
+        function restartFromPause() {
+            document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash').forEach(el => el.remove());
+            pauseScreen.style.display = 'none';
+            startGame();
+        }
+
+        function returnToMenu() {
+            document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash').forEach(el => el.remove());
+            gameOverScreen.style.display = 'none';
+            startScreen.style.display = 'flex';
+            resetGame();
+        }
+
+        function togglePause() {
+            if (!gameActive) return;
+            
+            if (gamePaused) {
+                resumeGame();
+            } else {
+                pauseGame();
+            }
+        }
+
+        function pauseGame() {
+            gamePaused = true;
+            clearInterval(spawnIntervalId);
+            cancelAnimationFrame(animationFrameId);
+            pauseScoreDisplay.textContent = score;
+            pauseScreen.style.display = 'flex';
+            
+            // Salva o estado atual do jogo
+            gameState = {
+                score: score,
+                lives: lives,
+                level: level,
+                spawnRate: spawnRate,
+                items: [...items]
+            };
+        }
+
+        function resumeGame() {
+            gamePaused = false;
+            pauseScreen.style.display = 'none';
+            lastTime = performance.now();
+            gameLoop(lastTime);
+            spawnIntervalId = setInterval(spawnItem, spawnRate);
+        }
+
+        function resetGame() {
+            gameActive = false;
+            clearInterval(spawnIntervalId);
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameActive || gamePaused) return;
+            
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            update(deltaTime);
+            render();
+            
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function update(deltaTime) {
+            // Atualiza a posição de todos os itens
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                
+                if (item.cut || item.exploded) {
+                    item.cutTime += deltaTime;
+                    if (item.cutTime > 500) { // 500ms para a animação
+                        removeItem(i);
+                    }
+                } else {
+                    item.y += item.speed * (deltaTime / 16); // Normaliza para ~60fps
+                    
+                    // Verifica se o item caiu no chão
+                    if (item.y > GAME_HEIGHT) {
+                        if (item.type !== 'bomb') { // Só perde vida se não for bomba
+                            lives--;
+                            updateLivesDisplay();
+                        }
+                        removeItem(i);
+                        
+                        if (lives <= 0) {
+                            gameOver();
+                        }
+                    }
+                }
+            }
+            
+            // Verifica se subiu de nível
+            if (score >= level * LEVEL_UP_SCORE) {
+                level++;
+                spawnRate = Math.max(MIN_SPAWN_RATE, spawnRate - SPAWN_RATE_DECREASE);
+                clearInterval(spawnIntervalId);
+                spawnIntervalId = setInterval(spawnItem, spawnRate);
+            }
+        }
+
+        function render() {
+            for (const item of items) {
+                if (item.element) {
+                    item.element.style.top = `${item.y}px`;
+                    item.element.style.left = `${item.x}px`;
+                }
+                
+                if (item.half1 && item.half2) {
+                    item.half1.style.top = `${item.y}px`;
+                    item.half1.style.left = `${item.x}px`;
+                    item.half2.style.top = `${item.y}px`;
+                    item.half2.style.left = `${item.x}px`;
+                }
+            }
+        }
+
+        function spawnItem() {
+            if (!gameActive || gamePaused) return;
+            
+            // Decide se spawna uma fruta ou uma bomba
+            const isBomb = Math.random() < BOMB_SPAWN_CHANCE;
+            const itemType = isBomb ? 'bomb' : FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+            const size = ITEM_SIZES[itemType];
+            const x = Math.random() * (GAME_WIDTH - size);
+            const y = -size;
+            const speed = ITEM_SPEEDS[itemType] * (1 + Math.random() * 0.5); // Variação de velocidade
+            
+            const itemElement = document.createElement('div');
+            itemElement.className = isBomb ? 'bomb' : `fruit ${itemType}`;
+            itemElement.style.width = `${size}px`;
+            itemElement.style.height = `${size}px`;
+            itemElement.style.left = `${x}px`;
+            itemElement.style.top = `${y}px`;
+            
+            const img = document.createElement('img');
+            img.src = ITEM_IMAGES[itemType];
+            img.draggable = false;
+            itemElement.appendChild(img);
+            
+            gameContainer.appendChild(itemElement);
+            
+            const newItem = {
+                type: itemType,
+                x: x,
+                y: y,
+                speed: speed,
+                size: size,
+                element: itemElement,
+                cut: false,
+                exploded: false,
+                cutTime: 0,
+                half1: null,
+                half2: null
+            };
+            
+            // Adiciona o evento de clique
+            itemElement.addEventListener('click', (e) => {
+                // Verifica se o clique foi na imagem (fruta/bomba) e não no container
+                if (e.target === img || e.target === itemElement) {
+                    const itemIndex = items.findIndex(i => i.element === itemElement);
+                    if (itemIndex !== -1 && !items[itemIndex].cut && !items[itemIndex].exploded) {
+                        if (items[itemIndex].type === 'bomb') {
+                            explodeBomb(itemIndex);
+                        } else {
+                            cutFruit(itemIndex, e.clientX, e.clientY);
+                        }
+                    }
+                }
+            });
+            
+            items.push(newItem);
+        }
+
+        function cutFruit(index, clickX, clickY) {
+            if (index < 0 || index >= items.length || items[index].cut || items[index].type === 'bomb' || !gameActive || gamePaused) return;
+            
+            const fruit = items[index];
+            fruit.cut = true;
+            fruit.element.classList.add('cut');
+            
+            // Cria efeito de suco
+            for (let i = 0; i < 5; i++) {
+                createJuiceSplash(clickX, clickY, fruit.type);
+            }
+            
+            // Cria duas metades da fruta
+            fruit.half1 = document.createElement('div');
+            fruit.half1.className = 'fruit-half';
+            fruit.half1.style.width = `${fruit.size}px`;
+            fruit.half1.style.height = `${fruit.size}px`;
+            fruit.half1.style.left = `${fruit.x}px`;
+            fruit.half1.style.top = `${fruit.y}px`;
+            
+            const img1 = document.createElement('img');
+            img1.src = ITEM_IMAGES[fruit.type];
+            img1.style.clipPath = 'polygon(0 0, 100% 0, 100% 50%, 0 50%)';
+            img1.style.transform = 'translateY(-5px)';
+            fruit.half1.appendChild(img1);
+            
+            fruit.half2 = document.createElement('div');
+            fruit.half2.className = 'fruit-half';
+            fruit.half2.style.width = `${fruit.size}px`;
+            fruit.half2.style.height = `${fruit.size}px`;
+            fruit.half2.style.left = `${fruit.x}px`;
+            fruit.half2.style.top = `${fruit.y}px`;
+            
+            const img2 = document.createElement('img');
+            img2.src = ITEM_IMAGES[fruit.type];
+            img2.style.clipPath = 'polygon(0 50%, 100% 50%, 100% 100%, 0 100%)';
+            img2.style.transform = 'translateY(5px)';
+            fruit.half2.appendChild(img2);
+            
+            gameContainer.appendChild(fruit.half1);
+            gameContainer.appendChild(fruit.half2);
+            
+            // Adiciona animação de queda das metades
+            setTimeout(() => {
+                if (fruit.half1) {
+                    fruit.half1.style.transform = 'translate(-20px, 20px) rotate(-30deg)';
+                    fruit.half1.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
+                    fruit.half1.style.opacity = '0';
+                }
+                
+                if (fruit.half2) {
+                    fruit.half2.style.transform = 'translate(20px, 20px) rotate(30deg)';
+                    fruit.half2.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
+                    fruit.half2.style.opacity = '0';
+                }
+            }, 10);
+            
+            // Adiciona pontos
+            score += ITEM_SCORES[fruit.type];
+            updateScoreDisplay();
+        }
+
+        function createJuiceSplash(x, y, fruitType) {
+            const splash = document.createElement('div');
+            splash.className = 'juice-splash';
+            splash.style.left = `${x - 20}px`;
+            splash.style.top = `${y - 20}px`;
+            
+            // Cor do suco baseada no tipo de fruta
+            const juiceColors = {
+                'apple': 'rgba(255, 50, 50, 0.7)',
+                'banana': 'rgba(255, 255, 100, 0.7)',
+                'orange': 'rgba(255, 165, 0, 0.7)',
+                'watermelon': 'rgba(255, 100, 100, 0.7)',
+                'strawberry': 'rgba(255, 0, 100, 0.7)',
+                'pineapple': 'rgba(255, 200, 0, 0.7)'
+            };
+            
+            splash.style.background = juiceColors[fruitType] || 'rgba(255, 255, 255, 0.7)';
+            
+            gameContainer.appendChild(splash);
+            
+            // Remove o splash após a animação
+            setTimeout(() => {
+                if (splash.parentNode) {
+                    splash.parentNode.removeChild(splash);
+                }
+            }, 800);
+        }
+
+        function explodeBomb(index) {
+            if (index < 0 || index >= items.length || items[index].exploded || items[index].type !== 'bomb' || !gameActive || gamePaused) return;
+            
+            const bomb = items[index];
+            bomb.exploded = true;
+            bomb.element.classList.add('exploded');
+            
+            // Cria efeito de explosão
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = `${bomb.x - 75 + bomb.size/2}px`;
+            explosion.style.top = `${bomb.y - 75 + bomb.size/2}px`;
+            gameContainer.appendChild(explosion);
+            
+            // Remove a explosão após a animação
+            setTimeout(() => {
+                if (explosion.parentNode) {
+                    explosion.parentNode.removeChild(explosion);
+                }
+            }, 600);
+            
+            // Remove uma vida
+            lives--;
+            updateLivesDisplay();
+            
+            if (lives <= 0) {
+                gameOver();
+            }
+        }
+
+        function removeItem(index) {
+            if (index < 0 || index >= items.length) return;
+            
+            const item = items[index];
+            
+            if (item.element && item.element.parentNode) {
+                item.element.parentNode.removeChild(item.element);
+            }
+            
+            if (item.half1 && item.half1.parentNode) {
+                item.half1.parentNode.removeChild(item.half1);
+            }
+            
+            if (item.half2 && item.half2.parentNode) {
+                item.half2.parentNode.removeChild(item.half2);
+            }
+            
+            items.splice(index, 1);
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = score;
+        }
+
+        function updateLivesDisplay() {
+            const lifeElements = livesContainer.querySelectorAll('.life');
+            lifeElements.forEach((life, index) => {
+                life.style.backgroundColor = index < lives ? 'var(--danger-color)' : 'rgba(255, 255, 255, 0.2)';
+            });
+        }
+
+        function gameOver() {
+            gameActive = false;
+            clearInterval(spawnIntervalId);
+            cancelAnimationFrame(animationFrameId);
+            
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // Inicia o jogo mostrando a tela inicial
+        startScreen.style.display = 'flex';
+    </script>
+</body>
+</html>
