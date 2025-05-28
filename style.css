@@ -280,6 +280,7 @@ body {
     transition: all 0.2s;
     box-shadow: var(--shadow);
     min-width: 180px;
+    
     width: 100%;
     max-width: 250px;
     pointer-events: auto !important;

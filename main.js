@@ -43,13 +43,18 @@ const MAX_LIVES = 3;
 const INITIAL_SPAWN_RATE = 1500; // ms
 const SPAWN_RATE_DECREASE = 50; // ms per level
 const MIN_SPAWN_RATE = 500;
-const LEVEL_UP_SCORE = 100;
 const BOMB_SPAWN_CHANCE = 0.15; // 15% de chance de spawnar uma bomba
+
+// Sistema de níveis
+const LEVEL_THRESHOLDS = [0, 100, 500, 1000, 2000, 5000]; // Pontos necessários para cada nível
+const SPEED_MULTIPLIERS = [1, 1.2, 1.5, 1.8, 2.2, 2.7]; // Multiplicadores de velocidade por nível
+const MAX_LEVEL = LEVEL_THRESHOLDS.length - 1;
 
 // Variáveis do jogo
 let score = 0;
+let highScore = localStorage.getItem('fruitNinjaHighScore') || 0;
 let lives = MAX_LIVES;
-let level = 1;
+let currentLevel = 1;
 let gameActive = false;
 let gamePaused = false;
 let items = [];
@@ -96,6 +101,25 @@ canvas.style.pointerEvents = 'none';
 document.body.appendChild(canvas);
 const ctx = canvas.getContext('2d');
 
+// Elemento para mostrar o recorde
+const highScoreDisplay = document.createElement('div');
+highScoreDisplay.id = 'high-score-display';
+highScoreDisplay.textContent = `Recorde: ${highScore}`;
+highScoreDisplay.style.fontSize = '24px';
+highScoreDisplay.style.marginBottom = '20px';
+highScoreDisplay.style.color = 'var(--warning-color)';
+startScreen.insertBefore(highScoreDisplay, startScreen.firstChild.nextSibling);
+
+// Animação de nível up
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes fadeOut {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  }
+`;
+document.head.appendChild(style);
+
 // Função para redimensionar o canvas
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -105,27 +129,33 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // Event Listeners
-startButton.addEventListener('click', startGame);
-restartButton.addEventListener('click', restartGame);
-menuButton.addEventListener('click', returnToMenu);
-pauseButton.addEventListener('click', togglePause);
-resumeButton.addEventListener('click', resumeGame);
-restartFromPauseButton.addEventListener('click', restartFromPause);
-menuFromPauseButton.addEventListener('click', () => {
-  document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash, .slice-trail').forEach(el => el.remove());
-  pauseScreen.style.display = 'none';
-  startScreen.style.display = 'flex';
-  returnToMenu();
-});
+// startButton.addEventListener('click', startGame);
+// restartButton.addEventListener('click', restartGame);
+// menuButton.addEventListener('click', returnToMenu);
+// pauseButton.addEventListener('click', togglePause);
+// resumeButton.addEventListener('click', resumeGame);
+// restartFromPauseButton.addEventListener('click', restartFromPause);
+// menuFromPauseButton.addEventListener('click', () => {
+//   document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash, .slice-trail').forEach(el => el.remove());
+//   pauseScreen.style.display = 'none';
+//   startScreen.style.display = 'flex';
+//   returnToMenu();
+// });
 
 // Eventos de toque/mouse para o corte
-gameContainer.addEventListener('mousedown', startSlice);
-gameContainer.addEventListener('mousemove', moveSlice);
-gameContainer.addEventListener('mouseup', endSlice);
-gameContainer.addEventListener('mouseleave', endSlice);
-gameContainer.addEventListener('touchstart', handleTouchStart);
-gameContainer.addEventListener('touchmove', handleTouchMove);
-gameContainer.addEventListener('touchend', handleTouchEnd);
+// Remova os event listeners anteriores e adicione estes
+gameContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+gameContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+startButton.addEventListener('touchstart', startGame, { passive: false });
+restartButton.addEventListener('touchstart', restartGame, { passive: false });
+menuFromPauseButton.addEventListener("touchstart", returnToMenu, {
+  passive: false,
+});
+pauseButton.addEventListener('touchstart', togglePause, { passive: false });
+resumeButton.addEventListener('touchstart', resumeGame, { passive: false });
+
 
 // Funções de controle do jogo
 function startGame() {
@@ -133,7 +163,7 @@ function startGame() {
   gamePaused = false;
   score = 0;
   lives = MAX_LIVES;
-  level = 1;
+  currentLevel = 1;
   spawnRate = INITIAL_SPAWN_RATE;
   items = [];
 
@@ -164,8 +194,9 @@ function restartFromPause() {
 function returnToMenu() {
   document.querySelectorAll('.fruit, .fruit-half, .bomb, .explosion, .juice-splash, .slice-trail').forEach(el => el.remove());
   gameOverScreen.style.display = 'none';
+  pauseScreen.style.display = 'none';
   startScreen.style.display = 'flex';
-  resetGame();
+  // resetGame();
 }
 
 function togglePause() {
@@ -223,7 +254,8 @@ function update(deltaTime) {
         removeItem(i);
       }
     } else {
-      item.y += item.speed * (deltaTime / 16);
+      // Aplica o multiplicador de velocidade do nível atual
+      item.y += item.speed * SPEED_MULTIPLIERS[currentLevel-1] * (deltaTime / 16);
       
       if (item.y > GAME_HEIGHT) {
         if (item.type !== 'bomb') {
@@ -239,12 +271,8 @@ function update(deltaTime) {
     }
   }
   
-  if (score >= level * LEVEL_UP_SCORE) {
-    level++;
-    spawnRate = Math.max(MIN_SPAWN_RATE, spawnRate - SPAWN_RATE_DECREASE);
-    clearInterval(spawnIntervalId);
-    spawnIntervalId = setInterval(spawnItem, spawnRate);
-  }
+  // Verifica se subiu de nível
+  checkLevelUp();
 }
 
 function render() {
@@ -263,16 +291,63 @@ function render() {
   }
 }
 
+// Sistema de níveis e recordes
+function checkLevelUp() {
+  const newLevel = calculateCurrentLevel();
+  if (newLevel > currentLevel) {
+    currentLevel = newLevel;
+    spawnRate = Math.max(MIN_SPAWN_RATE, INITIAL_SPAWN_RATE - (currentLevel * SPAWN_RATE_DECREASE));
+    clearInterval(spawnIntervalId);
+    spawnIntervalId = setInterval(spawnItem, spawnRate);
+    
+    showLevelUpMessage();
+  }
+}
+
+function calculateCurrentLevel() {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (score >= LEVEL_THRESHOLDS[i]) {
+      return Math.min(i + 1, MAX_LEVEL);
+    }
+  }
+  return 1;
+}
+
+function showLevelUpMessage() {
+  const levelUpDiv = document.createElement('div');
+  levelUpDiv.textContent = `Nível ${currentLevel}!`;
+  levelUpDiv.style.position = 'absolute';
+  levelUpDiv.style.top = '50%';
+  levelUpDiv.style.left = '50%';
+  levelUpDiv.style.transform = 'translate(-50%, -50%)';
+  levelUpDiv.style.fontSize = '48px';
+  levelUpDiv.style.color = 'white';
+  levelUpDiv.style.textShadow = '0 0 10px black';
+  levelUpDiv.style.zIndex = '300';
+  levelUpDiv.style.animation = 'fadeOut 2s forwards';
+  
+  document.body.appendChild(levelUpDiv);
+  
+  setTimeout(() => {
+    levelUpDiv.remove();
+  }, 2000);
+}
+
+function updateHighScoreDisplay() {
+  highScoreDisplay.textContent = `Recorde: ${highScore}`;
+}
+
 // Funções para spawn de itens
 function spawnItem() {
   if (!gameActive || gamePaused) return;
   
-  const isBomb = Math.random() < BOMB_SPAWN_CHANCE;
+  const isBomb = Math.random() < (BOMB_SPAWN_CHANCE * (1 + (currentLevel * 0.1)));
   const itemType = isBomb ? 'bomb' : FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
   const size = ITEM_SIZES[itemType];
   const x = Math.random() * (GAME_WIDTH - size);
   const y = -size;
-  const speed = ITEM_SPEEDS[itemType] * (1 + Math.random() * 0.5);
+  const baseSpeedMultiplier = 1 + (currentLevel * 0.1);
+  const speed = ITEM_SPEEDS[itemType] * (1 + Math.random() * 0.5) * baseSpeedMultiplier;
 
   const itemElement = document.createElement('div');
   itemElement.className = isBomb ? 'bomb' : `fruit ${itemType}`;
@@ -618,7 +693,16 @@ function gameOver() {
   clearInterval(spawnIntervalId);
   cancelAnimationFrame(animationFrameId);
 
-  finalScoreDisplay.textContent = score;
+  // Atualiza o recorde se necessário
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('fruitNinjaHighScore', highScore);
+    updateHighScoreDisplay();
+    finalScoreDisplay.innerHTML = `Novo recorde!<br>${score}`;
+  } else {
+    finalScoreDisplay.innerHTML = `Pontuação: ${score}<br>Recorde: ${highScore}`;
+  }
+  
   gameOverScreen.style.display = 'flex';
 }
 
