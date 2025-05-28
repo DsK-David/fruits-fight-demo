@@ -157,6 +157,7 @@ menuFromPauseButton.addEventListener("touchstart", returnToMenu, {
 });
 pauseButton.addEventListener('touchstart', togglePause, { passive: false });
 resumeButton.addEventListener('touchstart', resumeGame, { passive: false });
+restartButton.addEventListener('touchstart', restartGame,{passive: false});
 
 
 // Funções de controle do jogo
