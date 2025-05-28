@@ -147,7 +147,7 @@ resizeCanvas();
 gameContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
 gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
 gameContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
-menuButton.addEventListener('click', returnToMenu, { passive: false });
+menuButton.addEventListener('touchstart', returnToMenu, { passive: false });
 startButton.addEventListener('touchstart', startGame, { passive: false });
 restartButton.addEventListener('touchstart', restartGame, { passive: false });
 menuFromPauseButton.addEventListener("touchstart", returnToMenu, {
